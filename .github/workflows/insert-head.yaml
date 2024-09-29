@@ -1,9 +1,9 @@
-name: Insert .head Content v.1.2
+name: Insert .head Content v1.3
 on:
   push:
     paths:
       - .head  # Trigger when the .head file is modified
-  workflow_dispatch:  # Add manual trigger
+  workflow_dispatch:  # Manual trigger
 
 permissions:
   contents: write  # Grant write permissions to the repository contents
@@ -17,25 +17,51 @@ jobs:
 
       - name: Check if .head file exists
         id: check_head
-        run: if [[ -f .head ]]; then echo "exists=true" >> $GITHUB_ENV; else echo "exists=false" >> $GITHUB_ENV; fi
+        run: |
+          if [[ -f .head ]]; then
+            echo "exists=true" >> $GITHUB_ENV
+            echo ".head file found"
+          else
+            echo "exists=false" >> $GITHUB_ENV
+            echo ".head file not found"
+          fi
 
       - name: Abort if .head file does not exist
         if: env.exists == 'false'
-        run: echo "No .head file found, aborting operation." && exit 1
+        run: |
+          echo "No .head file found, aborting operation."
+          exit 1
 
       - name: Insert or Update .head content in HTML files
         if: env.exists == 'true'
         run: |
+          set -e  # Exit immediately if a command exits with a non-zero status
           CONTENT=$(cat .head)
+          echo "Content of .head file:"
+          echo "$CONTENT"
           START_COMMENT="<!-- START of .head content -->"
           END_COMMENT="<!-- END of .head content -->"
-          for file in $(find . -type f -name '*.html'); do
-            # Remove existing .head content within the defined comment block, if present
+          
+          echo "Listing all HTML files:"
+          find . -type f -name '*.html' -print
+          
+          while IFS= read -r -d '' file; do
+            echo "Processing file: $file"
+            if [[ ! -f "$file" ]]; then
+              echo "Warning: $file is not a regular file, skipping."
+              continue
+            fi
+            
+            echo "Removing existing .head content"
             sed -i "/${START_COMMENT}/,/${END_COMMENT}/d" "$file"
             
-            # Insert .head content with comments before </head>
+            echo "Inserting new .head content"
             sed -i "/<\/head>/i ${START_COMMENT}\\n${CONTENT}\\n${END_COMMENT}" "$file"
-          done
+            
+            echo "Finished processing $file"
+          done < <(find . -type f -name '*.html' -print0)
+          
+          echo "All HTML files processed"
           
           # Commit and push changes if any
           git config --global user.name 'github-actions[bot]'
@@ -47,6 +73,7 @@ jobs:
             # Push changes
             git remote set-url origin https://x-access-token:${{ secrets.GH_PAT }}@github.com/${{ github.repository }}
             git push origin HEAD:main
+            echo "Changes committed and pushed"
           else
             echo "No changes to commit."
           fi
