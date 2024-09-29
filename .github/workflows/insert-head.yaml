@@ -1,9 +1,9 @@
-name: Insert .head Content
-
+name: Insert .head Content v.1.2
 on:
   push:
     paths:
       - .head  # Trigger when the .head file is modified
+  workflow_dispatch:  # Add manual trigger
 
 permissions:
   contents: write  # Grant write permissions to the repository contents
@@ -29,8 +29,7 @@ jobs:
           CONTENT=$(cat .head)
           START_COMMENT="<!-- START of .head content -->"
           END_COMMENT="<!-- END of .head content -->"
-
-          for file in $(find . -name '*.html'); do
+          for file in $(find . -type f -name '*.html'); do
             # Remove existing .head content within the defined comment block, if present
             sed -i "/${START_COMMENT}/,/${END_COMMENT}/d" "$file"
             
