@@ -1,4 +1,4 @@
-name: Update Multiple Clients v.6.5
+name: Update Multiple Clients v.6.6
 
 on:
   push:
@@ -123,7 +123,7 @@ jobs:
 
             # Update files
             CHANGES_MADE=false
-            echo "$FILE_LIST" | while read -r file; do
+            while IFS= read -r file; do
               # Extract current values for this file
               OLD_PHONE_NAME=$(awk -F'[<>]' '/<span[^>]*>[0-9]{4} [0-9]{4}( [0-9]{4})? \([^)]+\)/ {print $3; exit}' "$file")
               OLD_WAURL=$(awk -F'"' '/class="whatsapp-floating".*href="/ {for(i=1;i<=NF;i++) if($i~/^https?:/) {print $i; exit}}' "$file")
@@ -140,16 +140,22 @@ jobs:
                 NEW_PHURL_ESCAPED=$(escape_for_sed "$PHURL")
 
                 # Perform replacements
-                sed -i "s|$OLD_PHONE_NAME_ESCAPED|$NEW_PHONE_NAME_ESCAPED|g" "$file"
-                sed -i "s|href=\"$OLD_WAURL_ESCAPED\"|href=\"$NEW_WAURL_ESCAPED\"|g" "$file"
-                sed -i "s|href=\"$OLD_PHURL_ESCAPED\"|href=\"$NEW_PHURL_ESCAPED\"|g" "$file"
+                if [ -n "$OLD_PHONE_NAME" ] && [ -n "$NEW_PHONE_NAME" ]; then
+                  sed -i "s|$OLD_PHONE_NAME_ESCAPED|$NEW_PHONE_NAME_ESCAPED|g" "$file"
+                fi
+                if [ -n "$OLD_WAURL" ] && [ -n "$WAURL" ]; then
+                  sed -i "s|href=\"$OLD_WAURL_ESCAPED\"|href=\"$NEW_WAURL_ESCAPED\"|g" "$file"
+                fi
+                if [ -n "$OLD_PHURL" ] && [ -n "$PHURL" ]; then
+                  sed -i "s|href=\"$OLD_PHURL_ESCAPED\"|href=\"$NEW_PHURL_ESCAPED\"|g" "$file"
+                fi
                 
                 CHANGES_MADE=true
                 echo "Updated file: $file"
               else
                 echo "No changes needed for file: $file"
               fi
-            done
+            done <<< "$FILE_LIST"
 
             if [ "$CHANGES_MADE" = true ]; then
               echo "Changes were made for Client $CLIENT_NUM"
